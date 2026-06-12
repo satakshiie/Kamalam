@@ -3,8 +3,10 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from database import engine, Base, get_db
-import models  # ensures all table classes are registered before create_all
+from database import engine, Base, get_db, SessionLocal
+from models import Customer
+import models
+from routers import customers, segments, campaigns, analytics, webhooks
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -18,17 +20,31 @@ app = FastAPI(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# DATABASE INITIALIZATION
+# HELPERS — defined before startup so Python can find them
+# ──────────────────────────────────────────────────────────────────────
+def auto_seed_if_empty():
+    db = SessionLocal()
+    try:
+        count = db.query(Customer).count()
+        if count == 0:
+            print("📦 Empty database detected — auto seeding...")
+            from seed import seed
+            seed()
+        else:
+            print(f"✅ Database already has {count} customers — skipping seed")
+    finally:
+        db.close()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# STARTUP — single handler, runs once when FastAPI starts
 # ──────────────────────────────────────────────────────────────────────
 @app.on_event("startup")
-def create_tables():
-    """
-    Runs once when FastAPI starts — not at import time.
-    Reads all models registered under Base and creates
-    any tables that don't already exist in indie_crm.db.
-    Safe to run on every restart.
-    """
+def startup():
+    # Step 1 — create tables if they don't exist
     Base.metadata.create_all(bind=engine)
+    # Step 2 — seed data if database is empty
+    auto_seed_if_empty()
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -54,7 +70,14 @@ def test_database_connection(db: Session = Depends(get_db)):
     and connection bridge are working properly.
     """
     try:
-        db.execute(text("SELECT 1"))  # text() required in SQLAlchemy 2.0+
+        db.execute(text("SELECT 1"))
         return {"database_status": "connected", "details": "Bridge is healthy"}
     except Exception as e:
         return {"database_status": "disconnected", "error": str(e)}
+    
+
+app.include_router(customers.router,  prefix="/api")
+app.include_router(segments.router,   prefix="/api")
+app.include_router(campaigns.router,  prefix="/api")
+app.include_router(analytics.router,  prefix="/api")
+app.include_router(webhooks.router,   prefix="/api")
