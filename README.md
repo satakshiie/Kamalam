@@ -6,5 +6,5 @@ An AI-native CRM tailored for homegrown Indian fashion brands platform(KAMALAM).
 * **Frontend:** React + Vite
 * **Backend:** FastAPI (Python)
 * **Database:** SQLite
-* **AI Orchestration:** Anthropic Claude API
+* **AI Orchestration:** Groq API
 * **Message Delivery:** Asynchronous Webhook Simulation
