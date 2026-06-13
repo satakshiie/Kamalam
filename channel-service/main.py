@@ -1,6 +1,6 @@
 # channel-service/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks 
 from pydantic import BaseModel
 import asyncio
 import httpx
@@ -51,17 +51,17 @@ def simulate_delay() -> float:
 # We accept it instantly and simulate delivery in the background
 # ──────────────────────────────────────────────────────────────────────
 @app.post("/send")
-async def send_message(request: SendMessageRequest):
+async def send_message(request: SendMessageRequest ,     background_tasks:   BackgroundTasks ):
     """
     Accepts a message from the CRM.
     Immediately returns 200 to avoid blocking the CRM.
     Simulates delivery asynchronously in the background.
     """
-    asyncio.create_task(
-        simulate_delivery(
-            external_message_id = request.external_message_id,
-            callback_url        = request.callback_url,
-        )
+
+    background_tasks.add_task(          # ← hands off to background
+        simulate_delivery,
+        external_message_id = request.external_message_id,
+        callback_url        = request.callback_url,
     )
     return {
         "accepted":             True,
